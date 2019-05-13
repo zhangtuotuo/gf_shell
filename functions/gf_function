@@ -1,0 +1,25 @@
+#!/bin/bash
+########################[environment]##################################
+PATH='/meta/.filecoin'
+DATA_PATH=''
+KEY_PATH='/root/GF_KEY'
+KEY_NAME='gf_key'
+
+#########################[functions]###################################
+
+gf(){
+	/bin/go-filecoin '--repodir='$PATH $*
+}
+
+#########################[variables]###################################
+
+#peer ID
+PID=`gf id | /usr/bin/jq -r '.ID'`
+
+#miner ID
+MID=`/usr/bin/cat $PATH/config.json | /usr/bin/jq -r '.mining.minerAddress'`
+
+#default wallet address
+DWA=`gf address default`
+
+

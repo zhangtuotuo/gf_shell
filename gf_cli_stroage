@@ -1,0 +1,19 @@
+#!/bin/bash
+
+def_miner_id=`go-filecoin --repodir=/meta/.filecoin client list-asks --enc=json | jq -r '.Miner'`
+def_file='/root/gf_data/test'
+
+miner_id=${2:-$def_miner_id}
+f_name=${1:-$def_file}
+
+rm -rf $def_file
+dd if=/dev/zero of=$def_file bs=900 count=1 &> /dev/null
+
+#导入存储内容(生成CID)
+CID=`go-filecoin --repodir=/meta/.filecoin client import $f_name`
+
+echo $CID
+#选择订单支付(必须保证钱包有足够的余额)
+go-filecoin --repodir=/meta/.filecoin  client propose-storage-deal --allow-duplicates $miner_id $CID 0 1000
+
+

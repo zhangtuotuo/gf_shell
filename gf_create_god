@@ -1,0 +1,27 @@
+#!/bin/bash
+killall go-filecoin
+sleep 3
+rm /meta/.filecoin/ -rf
+go-filecoin --repodir=/meta/.filecoin init   --genesisfile=/meta/fixtures/genesis.car
+nohup go-filecoin --repodir=/meta/.filecoin daemon &
+echo -e '\n'
+sleep 1
+rm -rf /root/gf_data
+mkdir /root/gf_data
+
+
+#获取FIE:
+minerAddr=$(cat /meta/fixtures/gen.json | jq '.Miners[0].Address' -r)
+go-filecoin --repodir=/meta/.filecoin config mining.minerAddress $minerAddr
+walletAddr=$(go-filecoin --repodir=/meta/.filecoin wallet import /meta/fixtures/0.key)
+nodePeerID=$(go-filecoin --repodir=/meta/.filecoin id | jq '.ID' -r)
+go-filecoin --repodir=/meta/.filecoin miner update-peerid --from $walletAddr --gas-price=0 --gas-limit=300 $minerAddr $nodePeerID
+sleep 2
+go-filecoin --repodir=/meta/.filecoin mining start
+
+#给默认钱包转账
+go-filecoin --repodir=/meta/.filecoin message send --from $walletAddr --gas-price=0 --gas-limit=300 --value 1000 `go-filecoin --repodir=/meta/.filecoin address default`
+
+#发送节点IP
+go-filecoin --repodir=/meta/.filecoin id | jq -r '.Addresses'[1] > /var/ftp/main_node_peer_id
+echo $walletAddr > /var/ftp/main_wallet_addr

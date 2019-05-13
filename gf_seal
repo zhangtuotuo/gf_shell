@@ -1,0 +1,17 @@
+#!/bin/bash
+
+def_node_host='192.168.10.210'
+main_node_host=${1:-$def_node_host}
+
+
+#获取客户端钱包
+rm -rf /root/gf_data/key 
+ssh ${main_node_host} go-filecoin --repodir=/meta/.filecoin wallet export `ssh ${main_node_host}  go-filecoin --repodir=/meta/.filecoin address default` --enc=json > /root/gf_data/key
+
+rm -rf /root/gf_data/test
+dd if=/dev/zero of=/root/gf_data/test bs=900 count=1 &> /dev/null
+#无客户端刷单
+client_wallet_id=`go-filecoin --repodir=/meta/.filecoin wallet import /root/gf_data/key`
+miner_id=`cat /meta/.filecoin/config.json | jq -r '.mining.minerAddress'`
+CID=`go-filecoin --repodir=/meta/.filecoin client import /root/gf_data/test`
+go-filecoin --repodir=/meta/.filecoin zbx pipe-mining --outstanding=50 --from=$client_wallet_id --miner=$miner_id --ask-id=0 --duration=28800 --data=$CID 50 1 100

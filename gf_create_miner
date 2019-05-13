@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+#创建矿工(创建前必须保证有钱包足够的余额)
+go-filecoin --repodir=/meta/.filecoin miner create 10 100 --gas-price=0 --gas-limit=1000 --peerid `go-filecoin --repodir=/meta/.filecoin id | jq -r '.ID'` > /var/ftp/client_miner_id
+export MINER_ADDR=`go-filecoin --repodir=/meta/.filecoin config mining.minerAddress | tr -d \"` 
+export MINER_OWNER_ADDR=`go-filecoin --repodir=/meta/.filecoin miner owner $MINER_ADDR`
+go-filecoin --repodir=/meta/.filecoin miner set-price --from=$MINER_OWNER_ADDR --miner=$MINER_ADDR --gas-price=0 --gas-limit=1000 0.000000000001 288000
+go-filecoin --repodir=/meta/.filecoin mining start
+

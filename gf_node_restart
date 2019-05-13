@@ -1,0 +1,18 @@
+#!/bin/bash
+
+
+killall go-filecoin
+sleep 3
+nohup go-filecoin --repodir=/meta/.filecoin daemon &
+echo -e '\n'
+def_node_host='192.168.10.210'
+main_node_host=${1:-$def_node_host}
+
+sleep 4
+
+main_ip=`curl -s ftp://${main_node_host}/main_node_peer_id`
+go-filecoin --repodir=/meta/.filecoin swarm connect $main_ip
+
+
+
+go-filecoin --repodir=/meta/.filecoin mining start

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+gf_create_node
+
+while :
+do
+	balance=`go-filecoin --repodir=/meta/.filecoin wallet balance $(go-filecoin --repodir=/meta/.filecoin address default)`
+	echo $balance
+	if [ $balance -ne 0 ];then
+		break
+	fi
+	sleep 1
+done
+
+gf_create_miner 

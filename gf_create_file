@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$1" == '-h' ];then
+	echo 'gf_create_file [file_name(def="test")] [size(def=900))]'
+else
+	f_name=${1:-"test"}
+	f_size=${2:-900}
+
+
+	dd if=/dev/zero of=/root/gf_data/$f_name bs=1 count=$f_size &> /dev/null
+	ls -lh ~/gf_data/$f_name
+fi
+

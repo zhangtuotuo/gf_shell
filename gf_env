@@ -1,0 +1,40 @@
+#!/bin/bash
+yum -y install psmisc vsftpd wget gcc make
+
+rm -rf glibc-2.18.tar.gz
+wget ftp://192.168.10.210/glibc-2.18.tar.gz
+tar zxf glibc-2.18.tar.gz 
+cd glibc-2.18/
+mkdir build
+cd build/
+../configure --prefix=/usr
+make -j2
+make install
+cd
+rm -rf glibc-2.18
+
+
+#安装jq命令
+yum install epel-release -y 
+yum list jq
+yum install jq -y
+
+
+
+systemctl restart vsftpd
+systemctl enable vsftpd
+
+
+rm -rf /root/.ssh
+mkdir /root/.ssh
+cd /root/.ssh
+wget ftp://192.168.10.210/ssh/*
+chmod 0400 id_rsa
+chmod 0400 authorized_keys
+
+grep 'StrictHostKeyChecking no' /etc/ssh/ssh_config &> /dev/null
+if [ $? -ne 0 ];then
+	echo 'StrictHostKeyChecking no' >> /etc/ssh/ssh_config
+fi
+cd 
+

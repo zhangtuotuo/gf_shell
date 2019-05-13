@@ -1,0 +1,47 @@
+#!/bin/bash
+
+#安装go-filecoin
+cd 
+killall go-filecoin
+rm -rf somecn.tar.gz
+scp -P 56666 222.188.110.115:/root/somecn.tar.gz ./
+rm -rf /meta/*
+rm -rf /bin/go-filecoin 
+tar -xf somecn.tar.gz -C /meta/
+cd /meta/some
+cp go-filecoin /bin/
+cp  -r fixtures /meta/
+cd
+
+
+
+grep 'export FIL_SEAL_OUTSTANDING=4'  /etc/profile &> /dev/null
+if [ $? -ne 0 ];then
+	echo 'export FIL_USE_SMALL_SECTORS=true' >> /etc/profile
+	echo 'export FIL_SEAL_OUTSTANDING=4' >> /etc/profile
+	export FIL_USE_SMALL_SECTORS=true
+	export FIL_SEAL_OUTSTANDING=4
+	echo $FIL_USE_SMALL_SECTORS
+	echo $FIL_SEAL_OUTSTANDING
+fi
+
+
+
+
+#安装go-filecoin脚本
+rm -rf ./gf_shell.tar.gz
+wget ftp://192.168.10.210:/gf_shell.tar.gz
+tar -xf gf_shell.tar.gz
+
+
+grep 'export PATH='/usr/bin/gf_shell':$PATH'  /etc/profile &> /dev/null
+if [ $? -ne 0 ];then
+	echo 'export PATH='/usr/bin/gf_shell':$PATH' >> /etc/profile
+	export PATH='/usr/bin/gf_shell':$PATH
+	echo $PATH
+fi
+
+rm -rf /usr/bin/gf_shell
+chmod +x -R gf_shell
+cp -r gf_shell /usr/bin/
+
