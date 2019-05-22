@@ -1,0 +1,60 @@
+#!/bin/bash
+
+GF_PATH='/meta/.filecoin'
+KEY_PATH='/root/GF_KEY'
+KEY_NAME='gf_key'
+
+#########################[functions]###################################
+
+gf(){
+	go-filecoin --repodir=${GF_PATH} $*
+}
+
+run(){
+	nohup go-filecoin --repodir=$GF_PATH daemon &
+}
+
+ini(){
+
+	if [ "$1" == "ol" ];then
+        	gf init --devnet-user --genesisfile=http://user.kittyhawk.wtf:8020/genesis.car
+	else
+        	gf init   --genesisfile=/meta/fixtures/genesis.car
+	fi
+}
+
+kill_gf(){
+	kill `ps -A | grep go-filecoin | awk '{print $1}'` &> /dev/null
+	if [ "$1" == "rm" ];then
+		 rm -rf $GF_PATH
+	fi
+}
+
+restart_node(){
+if [ "$1" == "rm" ];then
+        kill_gf rm
+        version=${2:-test}
+        ini $version
+	run
+        
+else
+        kill_gf
+	run
+fi
+}
+
+#########################[variables]###################################
+
+ps -A | grep go-filecoin &> /dev/null
+if [ $? -eq 0 ];then
+
+	#peer ID
+	PID=$(gf id | jq -r '.ID')
+
+	#miner ID
+	MID=`cat $GF_PATH/config.json | jq -r '.mining.minerAddress'` 
+
+	#default wallet address
+	DWA=`gf address default` 
+fi
+

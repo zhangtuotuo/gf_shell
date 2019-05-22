@@ -1,25 +1,180 @@
 #!/bin/bash
-########################[environment]##################################
-PATH='/meta/.filecoin'
-DATA_PATH=''
+
+GF_PATH='/meta/.filecoin'
+GF_DATA='/meta/gf_data'
+VER_PATH='/meta/ver'
 KEY_PATH='/root/GF_KEY'
 KEY_NAME='gf_key'
+MAIN_NET_HOST='192.168.10.210'
+
 
 #########################[functions]###################################
 
 gf(){
-	/bin/go-filecoin '--repodir='$PATH $*
+	go-filecoin --repodir=${GF_PATH} $*
 }
 
-#########################[variables]###################################
+get_mid(){
+	cat $GF_PATH/config.json | jq -r '.mining.minerAddress'
+}
 
-#peer ID
-PID=`gf id | /usr/bin/jq -r '.ID'`
+get_pid(){
+	gf id | jq -r '.ID'
+}
 
-#miner ID
-MID=`/usr/bin/cat $PATH/config.json | /usr/bin/jq -r '.mining.minerAddress'`
-
-#default wallet address
-DWA=`gf address default`
+get_dwa(){
+	gf address default
+}
 
 
+run(){
+	nohup go-filecoin --repodir=$GF_PATH daemon &
+}
+
+ini(){
+
+	if [ "$1" == "ol" ];then
+        	gf init --devnet-user --genesisfile=http://user.kittyhawk.wtf:8020/genesis.car
+	else
+        	gf init   --genesisfile=/meta/fixtures/genesis.car
+	fi
+}
+
+
+kill_gf(){
+	kill `ps -A | grep go-filecoin | awk '{print $1}'` &> /dev/null
+	if [ "$1" == "rm" ];then
+		 rm -rf $GF_PATH
+	fi
+}
+
+restart_node(){
+if [ "$1" == "rm" ];then
+        kill_gf rm
+	sleep 2
+        version=${2:-test}
+        ini $version
+	run
+        
+else
+        kill_gf
+	sleep 2
+	run
+fi
+}
+
+show_balance(){
+	wallet_addr=${1:-$(get_dwa)}
+	gf wallet balance $wallet_addr
+}
+
+create_miner(){
+	rom=${1:-10}
+	fil=${2:-100}
+	gf miner create ${rom} ${fil} --gas-price=0.000000000001 --gas-limit=1000 --peerid $(get_pid)
+	gf mining start
+}
+
+create_ask(){
+	wallet_addr=${1:-$(get_dwa)}
+	price=${2:-0.000000000001}
+	gf miner set-price --from=$wallet_addr --miner=$(get_mid) --gas-price=0.000000000001 --gas-limit=1000 $price 288000
+
+}
+
+#版本切换
+update(){
+        unlink /usr/bin/go-filecoin &> /dev/null
+        ln -s ${VER_PATH}/filecoin_$1/go-filecoin /usr/bin/
+        echo $1 > ${VER_PATH}/version
+        cat ${VER_PATH}/version
+}
+
+export_wallet(){
+	gf wallet import  $1
+}
+
+make_file(){
+	name=${1:-"test"}
+	size=${2:-250}
+	if [ -f ${GF_DATA}/$name ];then
+		rm -rf ${GF_DATA}/$name
+	fi
+	dd if=/dev/zero of=${GF_DATA}/${name} bs=1M count=${size}
+}
+
+
+#############################[test_function]##########################################
+if_start(){
+                while :
+                do
+                        gf id &> /dev/null
+                        if [ $? -eq 0 ];then
+                                break
+                        fi
+			sleep 1
+                done
+}
+
+
+create_god(){
+	ver=`cat ${VER_PATH}/version`
+	if [ "$ver" == "test" ];then
+        	restart_node rm
+		if_start
+       		god_addr=$(cat /meta/fixtures/gen.json | jq '.Miners[0].Address' -r)
+        	WalletAddr=$(export_wallet /meta/fixtures/0.key)
+       		pid=$(get_pid)
+        	echo $god_addr $WalletAddr $pid
+        	gf config mining.minerAddress $god_addr
+        	gf miner update-peerid --from ${WalletAddr} --gas-price=0.000000000001 --gas-limit=300 ${god_addr} ${pid}
+        	sleep 2
+        	gf mining start
+
+                gf message send --from ${WalletAddr} --gas-price=0 --gas-limit=300 --value 1000 $(get_dwa)
+
+        	#公布主网IP
+        	gf id | jq -r '.Addresses'[1] > /var/ftp/main_node_peer_id
+
+	else
+
+       		 echo "version error!"
+fi
+}
+
+create_node(){
+	ver=`cat ${VER_PATH}/version`
+        if [ "$ver" == "test" ];then
+		restart_node rm
+		if_start
+		main_ip=`curl -s "ftp://${MAIN_NET_HOST}/main_node_peer_id"`
+		gf swarm connect $main_ip
+		gf swarm peers
+		
+		#获取FIL
+		src_wallet_addr=$(export_wallet /meta/fixtures/1.key)
+		dest_wallet_addr=$(get_dwa)	
+		value=1000
+		echo $src_wallet_addr $dest_wallet_addr $value
+		gf message send --from ${src_wallet_addr} --gas-price=0 --gas-limit=300 --value $value ${dest_wallet_addr}
+		
+        else
+
+                 echo "version error!"
+fi
+}
+
+on(){
+	create_node
+	while :
+	do	
+		wallet_balance=$(show_balance)
+		echo $wallet_balance
+		if [ $wallet_balance -ne 0 ];then
+			create_miner
+			create_ask
+			break
+		fi
+		sleep 1
+	done
+}

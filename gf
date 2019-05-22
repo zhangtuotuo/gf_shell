@@ -5,18 +5,39 @@
 case $1 in
 
 #########################################[run]#########################################
-#后台启动go-filecoin
-run)
-/usr/bin/nohup $(gf daemon) &
+
+#初始化节点
+ini)
+version=${2:-test}
+ini $version
 ;;
 
+#后台启动go-filecoin
+run)
+run
+;;
+
+#重启节点
+restart)
+restart_node $2 $3
+;;
+
+#强行关闭进程
+kill_gf)
+kill_gf $2
+;;
 
 
 ########################################[network]######################################
 
+#获取本机IP
+lsip)
+gf id | /usr/bin/jq -r '.Addresses[]'
+;;
+
 #查看已经连接的网络
 lsnet)
-gf id | /usr/bin/jq -r '.Addresses[]'
+gf swarm peers
 ;;
 
 #连接网络
@@ -26,7 +47,7 @@ gf swarm connect $2
 
 #获取peer ID
 pid)
-echo $PID
+get_pid
 ;;
 
 
@@ -34,13 +55,13 @@ echo $PID
 #########################################[wallet]######################################
 #查看余额
 lsw)
-wallet_addr=${2:-$DWA}
-gf wallet balance $wallet_addr
+wallet_addr=${2:-$(get_dwa)}
+show_balance $(get_dwa)
 ;;
 
 #获取默认钱包地址
 dwa)
-echo $DWA
+get_dwa
 ;;
 
 
@@ -62,7 +83,7 @@ done
 
 #导入钱包
 imp)
-gf wallet import  $2
+export_wallet $2
 ;;
 
 
@@ -103,7 +124,7 @@ if [ $# -le 3 ];then
                 dest_wallet_addr=$3
                 value=${4:-1000}
 	else
-		src_wallet_addr=$DWA
+		src_wallet_addr=$(get_dwa)
 		dest_wallet_addr=$2
 		value=${3:-1000}
 	fi
@@ -122,29 +143,28 @@ gf message send --from ${src_wallet_addr} --gas-price=0 --gas-limit=300 --value 
 #########################################[minwer]######################################
 #获取miner ID
 mid)
-echo $MID
+get_mid
+;;
+
+#生成指定大小的测试文件
+mkf)
+make_file $2 $3
 ;;
 
 #开启矿工
 cm)
-rom=${2:-10}
-fil=${3:-100}
-gf miner create ${rom} ${fil} --gas-price=0 --gas-limit=1000 --peerid ${PID}
-gf mining start
+create_miner $2 $3
 ;;
 
 #生成订单
 ca)
-wallet_addr=${2:-$DWA}
-price=${3:-0.000000000001}
-
-gf miner set-price --from=$wallet_addr --miner=$MID --gas-price=0 --gas-limit=1000 $price 288000
+create_ask $2 $3
 ;;
 
 
 #查看算力
 pow)
-miner_id=${2:-$MID}
+miner_id=${2:-$(get_mid)}
 gf miner power $miner_id
 ;;
 
@@ -181,9 +201,12 @@ echo '----------------------------------命令帮助----------------------------
 
 命令			参数				说明
 ---run---
+ini			[version]			(ol)官方版,(test)测试版,默认为"test"
 run			-				后台运行节点
+restart			[rm][version]			重启节点，(rm)初始化节点后重启,不初始化无需指定版本
 
 ---network---
+lsip			-				获取本机IP
 pid			-				获取peer ID
 lsnet			-				查看已经连接的网络
 cnt			<gf_ip>				连接到filecoin网络
@@ -199,6 +222,7 @@ send			[src] <dest> <val>		转账sec="默认钱包地址",val="1000"
 
 ---miner---
 mid			-				获取miner ID
+mkf			[name][size]			生成指定大小的测试文件(MB),name="test",size="250M"
 cm			[rom] [fil]			开启矿工
 ca			[wallet_addr][price]		生成订单,默认dwa,0.000000000001
 pow			[miner_id]			查看算力,默认为自身id
@@ -209,13 +233,53 @@ cid			<path>				生成CID
 deal			<zid>				查看订单状态
 cmt			<mid><path>[ask][duration]	提交订单ask=0,duration=1000	
 
+---test---
+god			-				创建主网
+node			-				创建节点
+on			-				一键启动矿工节点
+
 ---other---
 -h			-				查看帮助文档
+ver			-				查看当前版本
+swv			<ver>				切换gf版本[ol|test]
 -			-				官方命令
+
 ----------------------------------------------------------------------------------------
 '
 ;;
 
+
+#查看当前版本
+ver)
+cat $VER_PATH/version
+;;
+
+#切换gf版本
+swv)
+ver=${2:-'test'}
+if [ "$ver" == "ol" ] || [ "$ver" == "test" ];then
+	update $ver
+else
+	echo version error!
+fi
+;;
+
+#创建主网(仅适用与测试版)
+god)
+create_god
+;;
+
+#一键启动节点(仅适用与测试版)
+node)
+create_node
+;;
+
+#一键启动矿工(仅适用与测试版)
+on)
+on
+;;
+
+#官方命令
 *)
 gf $*
 ;;

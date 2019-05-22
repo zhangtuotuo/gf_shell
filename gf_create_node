@@ -21,7 +21,7 @@ mkdir /root/gf_data
 #获取FIL
 main_wallet_addr=`curl -s ftp://${main_node_host}/main_wallet_addr`
 local_def_addr=`go-filecoin --repodir=/meta/.filecoin address default`
-ssh ${main_node_host} go-filecoin --repodir=/meta/.filecoin message send --from ${main_wallet_addr} --gas-price=0 --gas-limit=300 --value 1000 ${local_def_addr}
+ssh ${main_node_host} go-filecoin --repodir=/meta/.filecoin message send --from ${main_wallet_addr} --gas-price=0.000000000001 --gas-limit=300 --value 1000 ${local_def_addr}
 
 
 #查看订单
